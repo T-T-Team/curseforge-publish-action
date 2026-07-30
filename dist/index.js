@@ -21924,14 +21924,10 @@ async function loadGameVersionMappings() {
   return result;
 }
 function setDefaultValuesAndValidate() {
-  if (!inputs.changelogType) {
-    inputs.changelogType = CHANGELOG_MARKDOWN;
-  } else if (!CHANGELOG_TYPES.includes(inputs.changelogType)) {
+  if (inputs.changelogType && !CHANGELOG_TYPES.includes(inputs.changelogType)) {
     throw new Error(`Unsupported changelog file type '${inputs.changelogType}', must be one of: ${CHANGELOG_TYPES}`);
   }
-  if (!inputs.gameEnvironment) {
-    inputs.gameEnvironment = `${ENV_CLIENT},${ENV_SERVER}`;
-  } else {
+  if (inputs.gameEnvironment) {
     const envs = parseInputList(inputs.gameEnvironment);
     for (const env of envs) {
       if (!ENVIRONMENTS.includes(env)) {
