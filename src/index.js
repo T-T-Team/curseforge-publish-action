@@ -137,7 +137,7 @@ async function loadGameVersionList(artifact) {
     const value = version.value;
     const type = version.versionType;
     const versionList = versionMap[type];
-    const matchedVersion = versionList.find(v => v.name === value.toLowerCase() || v.slug === value.toLowerCase());
+    const matchedVersion = versionList.find(v => v.name.toLowerCase() === value.toLowerCase() || v.slug.toLowerCase() === value.toLowerCase());
     if (!matchedVersion) {
       throw new Error(`Invalid game version value '${value}' of version type ID ${type}`);
     }
