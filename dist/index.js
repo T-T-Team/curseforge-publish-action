@@ -21776,7 +21776,6 @@ var actions = require_core();
 var fs = require("fs");
 var path = require("path");
 var BASE_API_URL = "https://minecraft.curseforge.com";
-var URL_GET_VERSIONS = `${BASE_API_URL}/api/game/versions`;
 var URL_UPLOAD_PROVIDER = (id) => `${BASE_API_URL}/api/projects/${id}/upload-file`;
 var EXCLUDED_FILE_SUFFIXES = [
   "sources",
@@ -21827,10 +21826,6 @@ var MOD_LOADERS = [
   LOADER_QUILT,
   LOADER_RIFT
 ];
-var GAME_VERSION_MINECRAFT = 1;
-var GAME_VERSION_JAVA = 2;
-var GAME_VERSION_ENVIRONMENT = 75208;
-var GAME_VERSION_LOADER = 68441;
 var HTTP_METHOD = {
   GET: "GET",
   POST: "POST"
@@ -21858,8 +21853,6 @@ var inputs = {
 async function main() {
   setDefaultValuesAndValidate();
   const uploadArtifact = await resolveUploadArtifact();
-  const versionList = await loadGameVersionList(uploadArtifact);
-  appendGameVersionList(uploadArtifact, versionList);
   await upload(uploadArtifact);
 }
 async function upload(artifact) {
@@ -21871,7 +21864,7 @@ async function upload(artifact) {
     releaseType: artifact.releaseType,
     changelog: artifact.changelog,
     changelogType: artifact.changelogType,
-    gameVersions: artifact.gameVersions,
+    gameVersionNames: artifact.gameVersionNames,
     relations: artifact.relations
   });
   payload.append("metadata", metadata);
@@ -21888,40 +21881,6 @@ ${metadata}`);
     actions.info(`File uploaded successfully. created version ID ${versionId}`);
   }
   actions.setOutput("version-id", versionId);
-}
-function appendGameVersionList(uploadArtifact, versions) {
-  delete uploadArtifact.versionNames;
-  uploadArtifact.gameVersions = versions;
-}
-async function loadGameVersionList(artifact) {
-  const versionMap = await loadGameVersionMappings();
-  const result = [];
-  for (const version of artifact.versionNames) {
-    const value = version.value;
-    const type = version.versionType;
-    const versionList = versionMap[type];
-    const matchedVersion = versionList.find((v) => v.name.toLowerCase() === value.toLowerCase() || v.slug.toLowerCase() === value.toLowerCase());
-    if (!matchedVersion) {
-      throw new Error(`Invalid game version value '${value}' of version type ID ${type}`);
-    }
-    result.push(matchedVersion.id);
-  }
-  return result;
-}
-async function loadGameVersionMappings() {
-  const result = {
-    [GAME_VERSION_MINECRAFT]: [],
-    [GAME_VERSION_JAVA]: [],
-    [GAME_VERSION_ENVIRONMENT]: [],
-    [GAME_VERSION_LOADER]: []
-  };
-  const gameVersions = await sendApiRequest(HTTP_METHOD.GET, URL_GET_VERSIONS);
-  for (const version of gameVersions) {
-    if (result[version.gameVersionTypeID] != null) {
-      result[version.gameVersionTypeID].push(version);
-    }
-  }
-  return result;
 }
 function setDefaultValuesAndValidate() {
   if (inputs.changelogType && !CHANGELOG_TYPES.includes(inputs.changelogType)) {
@@ -21976,11 +21935,11 @@ function filterFile(file) {
 }
 async function processFile(artifact) {
   const versionNames = [];
-  addGameVersion(inputs.gameVersion, GAME_VERSION_MINECRAFT, versionNames);
-  addGameVersion(inputs.modLoader, GAME_VERSION_LOADER, versionNames);
-  addGameVersion(inputs.gameEnvironment, GAME_VERSION_ENVIRONMENT, versionNames);
+  addGameVersion(inputs.gameVersion, versionNames);
+  addGameVersion(inputs.modLoader, versionNames);
+  addGameVersion(inputs.gameEnvironment, versionNames);
   if (inputs.javaVersion) {
-    addGameVersion(inputs.javaVersion, GAME_VERSION_JAVA, versionNames);
+    addGameVersion(inputs.javaVersion, versionNames);
   }
   const displayName = path.basename(artifact, ".jar").toLowerCase();
   const releaseChannel = inputs.releaseChannel || resolveReleaseType(displayName);
@@ -22001,17 +21960,12 @@ async function processFile(artifact) {
     relations: {
       projects: dependencies
     },
-    versionNames
+    gameVersionNames: versionNames
   };
 }
-function addGameVersion(input, versionType, output) {
+function addGameVersion(input, output) {
   const values = parseInputList(input);
-  for (const value of values) {
-    output.push({
-      value,
-      versionType
-    });
-  }
+  output.push(...values);
 }
 function resolveReleaseType(filename) {
   for (const channel of RECOGNIZE_CHANNEL_LIST) {
@@ -22039,19 +21993,24 @@ function parseInputList(values, separator = ",") {
   const result = values.split(separator);
   return result.map((value) => value.trim()).filter(Boolean);
 }
-async function sendApiRequest(method, url, options = {}) {
-  actions.debug(`Sending request to ${url}`);
+async function sendApiRequest(method, url, options = {}, contentLogging = true) {
   const headers = options?.headers || {};
-  const response = await fetch(url, {
+  const requestOptions = {
     ...options,
     method,
     headers: {
       ...headers,
       "X-Api-Token": inputs.token
     }
-  });
+  };
+  if (contentLogging) {
+    const body2 = options?.body || {};
+    actions.debug(`Sending request to ${url} with body:
+${JSON.stringify(body2, null, 2)}`);
+  }
+  const response = await fetch(url, requestOptions);
   const body = await response.text();
-  if (actions.isDebug()) {
+  if (actions.isDebug() && contentLogging) {
     actions.debug("Response content:");
     actions.debug(body);
   }

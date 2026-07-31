@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 
 const BASE_API_URL = "https://minecraft.curseforge.com";
-const URL_GET_VERSIONS = `${BASE_API_URL}/api/game/versions`;
 const URL_UPLOAD_PROVIDER = (id) => `${BASE_API_URL}/api/projects/${id}/upload-file`;
 
 const EXCLUDED_FILE_SUFFIXES = [
@@ -49,11 +48,6 @@ const MOD_LOADERS = [
   LOADER_FORGE, LOADER_FABRIC, LOADER_NEOFORGE, LOADER_QUILT, LOADER_RIFT
 ];
 
-const GAME_VERSION_MINECRAFT = 1;
-const GAME_VERSION_JAVA = 2;
-const GAME_VERSION_ENVIRONMENT = 75208;
-const GAME_VERSION_LOADER = 68441;
-
 const HTTP_METHOD = {
   GET: "GET",
   POST: "POST"
@@ -87,10 +81,6 @@ async function main() {
   // Prepare all files for upload
   const uploadArtifact = await resolveUploadArtifact();
 
-  // Resolve versions using version API
-  const versionList = await loadGameVersionList(uploadArtifact);
-  appendGameVersionList(uploadArtifact, versionList);
-
   // Upload files
   await upload(uploadArtifact);
 }
@@ -106,7 +96,7 @@ async function upload(artifact) {
     releaseType: artifact.releaseType,
     changelog: artifact.changelog,
     changelogType: artifact.changelogType,
-    gameVersions: artifact.gameVersions,
+    gameVersionNames: artifact.gameVersionNames,
     relations: artifact.relations
   });
   payload.append("metadata", metadata);
@@ -123,43 +113,6 @@ async function upload(artifact) {
     actions.info(`File uploaded successfully. created version ID ${versionId}`);
   }
   actions.setOutput("version-id", versionId);
-}
-
-function appendGameVersionList(uploadArtifact, versions) {
-  delete uploadArtifact.versionNames;
-  uploadArtifact.gameVersions = versions;
-}
-
-async function loadGameVersionList(artifact) {
-  const versionMap = await loadGameVersionMappings();
-  const result = [];
-  for (const version of artifact.versionNames) {
-    const value = version.value;
-    const type = version.versionType;
-    const versionList = versionMap[type];
-    const matchedVersion = versionList.find(v => v.name.toLowerCase() === value.toLowerCase() || v.slug.toLowerCase() === value.toLowerCase());
-    if (!matchedVersion) {
-      throw new Error(`Invalid game version value '${value}' of version type ID ${type}`);
-    }
-    result.push(matchedVersion.id);
-  }
-  return result;
-}
-
-async function loadGameVersionMappings() {
-  const result = {
-    [GAME_VERSION_MINECRAFT]: [],
-    [GAME_VERSION_JAVA]: [],
-    [GAME_VERSION_ENVIRONMENT]: [],
-    [GAME_VERSION_LOADER]: []
-  };
-  const gameVersions = await sendApiRequest(HTTP_METHOD.GET, URL_GET_VERSIONS);
-  for (const version of gameVersions) {
-    if (result[version.gameVersionTypeID] != null) {
-      result[version.gameVersionTypeID].push(version);
-    }
-  }
-  return result;
 }
 
 function setDefaultValuesAndValidate() {
@@ -229,14 +182,14 @@ async function processFile(artifact) {
   // Version names
   const versionNames = [];
   // game version
-  addGameVersion(inputs.gameVersion, GAME_VERSION_MINECRAFT, versionNames);
+  addGameVersion(inputs.gameVersion, versionNames);
   // mod loader
-  addGameVersion(inputs.modLoader, GAME_VERSION_LOADER, versionNames);
+  addGameVersion(inputs.modLoader, versionNames);
   // environment
-  addGameVersion(inputs.gameEnvironment, GAME_VERSION_ENVIRONMENT, versionNames);
+  addGameVersion(inputs.gameEnvironment, versionNames);
   // java version - optional
   if (inputs.javaVersion) {
-    addGameVersion(inputs.javaVersion, GAME_VERSION_JAVA, versionNames);
+    addGameVersion(inputs.javaVersion, versionNames);
   }
 
   const displayName = path.basename(artifact, ".jar").toLowerCase();
@@ -263,18 +216,13 @@ async function processFile(artifact) {
     relations: {
       projects: dependencies
     },
-    versionNames
+    gameVersionNames: versionNames
   }
 }
 
-function addGameVersion(input, versionType, output) {
+function addGameVersion(input, output) {
   const values = parseInputList(input);
-  for (const value of values) {
-    output.push({
-      value,
-      versionType
-    })
-  }
+  output.push(...values)
 }
 
 function resolveReleaseType(filename) {
@@ -306,19 +254,23 @@ function parseInputList(values, separator = ",") {
   return result.map(value => value.trim()).filter(Boolean);
 }
 
-async function sendApiRequest(method, url, options = {}) {
-  actions.debug(`Sending request to ${url}`);
+async function sendApiRequest(method, url, options = {}, contentLogging = true) {
   const headers = options?.headers || {};
-  const response = await fetch(url, {
+  const requestOptions = {
     ...options,
     method,
     headers: {
       ...headers,
       "X-Api-Token": inputs.token
     }
-  });
+  };
+  if (contentLogging) {
+    const body = options?.body || {};
+    actions.debug(`Sending request to ${url} with body:\n${JSON.stringify(body, null, 2)}`);
+  }
+  const response = await fetch(url, requestOptions);
   const body = await response.text();
-  if (actions.isDebug()) {
+  if (actions.isDebug() && contentLogging) {
     actions.debug("Response content:");
     actions.debug(body);
   }
