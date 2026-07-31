@@ -21815,11 +21815,11 @@ var ENVIRONMENTS = [
   ENV_CLIENT,
   ENV_SERVER
 ];
-var LOADER_FORGE = "forge";
-var LOADER_FABRIC = "fabric";
-var LOADER_NEOFORGE = "neoforge";
-var LOADER_QUILT = "quilt";
-var LOADER_RIFT = "rift";
+var LOADER_FORGE = "Forge";
+var LOADER_FABRIC = "Fabric";
+var LOADER_NEOFORGE = "NeoForge";
+var LOADER_QUILT = "Quilt";
+var LOADER_RIFT = "Rift";
 var MOD_LOADERS = [
   LOADER_FORGE,
   LOADER_FABRIC,

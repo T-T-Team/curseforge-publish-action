@@ -40,11 +40,11 @@ const ENVIRONMENTS = [
   ENV_CLIENT, ENV_SERVER
 ];
 
-const LOADER_FORGE = "forge";
-const LOADER_FABRIC = "fabric";
-const LOADER_NEOFORGE = "neoforge";
-const LOADER_QUILT = "quilt";
-const LOADER_RIFT = "rift";
+const LOADER_FORGE = "Forge";
+const LOADER_FABRIC = "Fabric";
+const LOADER_NEOFORGE = "NeoForge";
+const LOADER_QUILT = "Quilt";
+const LOADER_RIFT = "Rift";
 const MOD_LOADERS = [
   LOADER_FORGE, LOADER_FABRIC, LOADER_NEOFORGE, LOADER_QUILT, LOADER_RIFT
 ];
