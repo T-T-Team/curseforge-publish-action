@@ -251,10 +251,11 @@ function processFile(artifact) {
   resolveDependencyList(inputs.dependencies.tools, RELATION_TOOL, dependencies);
 
   // Read the file
-  const content = fs.createReadStream(artifact);
+  const fileContent = fs.promises.readFile(artifact);
+  const blob = new Blob([fileContent], {type: "application/java-archive"});
 
   return {
-    file: content,
+    file: blob,
     displayName: displayName,
     releaseType: releaseChannel,
     changelog: inputs.changelogContent,

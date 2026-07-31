@@ -21990,9 +21990,10 @@ function processFile(artifact) {
   resolveDependencyList(inputs.dependencies.embedded, RELATION_EMBEDDED, dependencies);
   resolveDependencyList(inputs.dependencies.incompatible, RELATION_INCOMPATIBLE, dependencies);
   resolveDependencyList(inputs.dependencies.tools, RELATION_TOOL, dependencies);
-  const content = fs.createReadStream(artifact);
+  const fileContent = fs.promises.readFile(artifact);
+  const blob = new Blob([fileContent], { type: "application/java-archive" });
   return {
-    file: content,
+    file: blob,
     displayName,
     releaseType: releaseChannel,
     changelog: inputs.changelogContent,
