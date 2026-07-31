@@ -26,18 +26,18 @@ inputs:
     default: "markdown"
   release-channel:
     required: false
-    description: 'Allows you to set release channel such as Release, Beta, Alpha. If empty it is resolved from filename based on -beta/-alpha suffix'
+    description: 'Allows you to set release channel such as release, beta, alpha. If empty it is resolved from filename based on -beta/-alpha suffix'
     default: ""
   game-version:
     required: true
     description: 'Comma separated string with Minecraft game version numbers. Such as 26.2,26.1.2,...'
   game-environment:
     required: false
-    description: 'Comma separated string with environments where this mod is required such as client or server. By default uses both client and server'
-    default: "Client,Server"
+    description: 'Comma separated string with environments where this mod is required such as client or server. By default uses both client,server'
+    default: "client,server"
   mod-loader:
     required: true
-    description: 'Comma separated list of loaders to be used for the upload file'
+    description: 'Comma separated list of loaders to be used for the upload file. Example: neoforge,forge,fabric,...'
   java-version:
     required: false
     description: 'Comma separated string with java versions this mod uses'

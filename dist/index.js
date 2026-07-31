@@ -21808,17 +21808,21 @@ var RELATION_OPTIONAL = "optionalDependency";
 var RELATION_EMBEDDED = "embeddedLibrary";
 var RELATION_INCOMPATIBLE = "incompatible";
 var RELATION_TOOL = "tool";
-var ENV_CLIENT = "Client";
-var ENV_SERVER = "Server";
+var ENV_CLIENT = "client";
+var ENV_SERVER = "server";
 var ENVIRONMENTS = [
   ENV_CLIENT,
   ENV_SERVER
 ];
-var LOADER_FORGE = "Forge";
-var LOADER_FABRIC = "Fabric";
-var LOADER_NEOFORGE = "NeoForge";
-var LOADER_QUILT = "Quilt";
-var LOADER_RIFT = "Rift";
+var ENVIRONMENT_NAME_MAPPINGS = {
+  [ENV_CLIENT]: "Client",
+  [ENV_SERVER]: "Server"
+};
+var LOADER_FORGE = "forge";
+var LOADER_FABRIC = "fabric";
+var LOADER_NEOFORGE = "neoforge";
+var LOADER_QUILT = "quilt";
+var LOADER_RIFT = "rift";
 var MOD_LOADERS = [
   LOADER_FORGE,
   LOADER_FABRIC,
@@ -21826,6 +21830,13 @@ var MOD_LOADERS = [
   LOADER_QUILT,
   LOADER_RIFT
 ];
+var LOADER_NAME_MAPPINGS = {
+  [LOADER_FORGE]: "Forge",
+  [LOADER_FABRIC]: "Fabric",
+  [LOADER_NEOFORGE]: "NeoForge",
+  [LOADER_QUILT]: "Quilt",
+  [LOADER_RIFT]: "Rift"
+};
 var HTTP_METHOD = {
   GET: "GET",
   POST: "POST"
@@ -21883,6 +21894,11 @@ ${metadata}`);
   actions.setOutput("version-id", versionId);
 }
 function setDefaultValuesAndValidate() {
+  requireInput(inputs.artifactDirectory, "artifact-directory");
+  requireInput(inputs.token, "token");
+  requireInput(inputs.projectId, "project-id");
+  requireInput(inputs.gameVersion, "game-version");
+  requireInput(inputs.modLoader, "mod-loader");
   if (inputs.changelogType && !CHANGELOG_TYPES.includes(inputs.changelogType)) {
     throw new Error(`Unsupported changelog file type '${inputs.changelogType}', must be one of: ${CHANGELOG_TYPES}`);
   }
@@ -21936,8 +21952,8 @@ function filterFile(file) {
 async function processFile(artifact) {
   const versionNames = [];
   addGameVersion(inputs.gameVersion, versionNames);
-  addGameVersion(inputs.modLoader, versionNames);
-  addGameVersion(inputs.gameEnvironment, versionNames);
+  addGameVersion(inputs.modLoader, versionNames, LOADER_NAME_MAPPINGS);
+  addGameVersion(inputs.gameEnvironment, versionNames, ENVIRONMENT_NAME_MAPPINGS);
   if (inputs.javaVersion) {
     addGameVersion(inputs.javaVersion, versionNames);
   }
@@ -21963,8 +21979,11 @@ async function processFile(artifact) {
     gameVersionNames: versionNames
   };
 }
-function addGameVersion(input, output) {
-  const values = parseInputList(input);
+function addGameVersion(input, output, mappings = {}) {
+  let values = parseInputList(input);
+  if (mappings) {
+    values = values.map((value) => mappings[value] || value);
+  }
   output.push(...values);
 }
 function resolveReleaseType(filename) {
@@ -21992,6 +22011,11 @@ function parseInputList(values, separator = ",") {
   }
   const result = values.split(separator);
   return result.map((value) => value.trim()).filter(Boolean);
+}
+function requireInput(value, name) {
+  if (!value) {
+    throw new Error(`Missing required input: ${name}`);
+  }
 }
 async function sendApiRequest(method, url, options = {}, contentLogging = true) {
   const headers = options?.headers || {};

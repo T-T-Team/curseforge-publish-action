@@ -33,20 +33,31 @@ const RELATION_EMBEDDED = "embeddedLibrary";
 const RELATION_INCOMPATIBLE = "incompatible";
 const RELATION_TOOL = "tool";
 
-const ENV_CLIENT = "Client";
-const ENV_SERVER = "Server";
+const ENV_CLIENT = "client";
+const ENV_SERVER = "server";
 const ENVIRONMENTS = [
   ENV_CLIENT, ENV_SERVER
 ];
+const ENVIRONMENT_NAME_MAPPINGS = {
+  [ENV_CLIENT]: "Client",
+  [ENV_SERVER]: "Server"
+};
 
-const LOADER_FORGE = "Forge";
-const LOADER_FABRIC = "Fabric";
-const LOADER_NEOFORGE = "NeoForge";
-const LOADER_QUILT = "Quilt";
-const LOADER_RIFT = "Rift";
+const LOADER_FORGE = "forge";
+const LOADER_FABRIC = "fabric";
+const LOADER_NEOFORGE = "neoforge";
+const LOADER_QUILT = "quilt";
+const LOADER_RIFT = "rift";
 const MOD_LOADERS = [
   LOADER_FORGE, LOADER_FABRIC, LOADER_NEOFORGE, LOADER_QUILT, LOADER_RIFT
 ];
+const LOADER_NAME_MAPPINGS = {
+  [LOADER_FORGE]: "Forge",
+  [LOADER_FABRIC]: "Fabric",
+  [LOADER_NEOFORGE]: "NeoForge",
+  [LOADER_QUILT]: "Quilt",
+  [LOADER_RIFT]: "Rift"
+};
 
 const HTTP_METHOD = {
   GET: "GET",
@@ -116,6 +127,12 @@ async function upload(artifact) {
 }
 
 function setDefaultValuesAndValidate() {
+  requireInput(inputs.artifactDirectory, "artifact-directory");
+  requireInput(inputs.token, "token");
+  requireInput(inputs.projectId, "project-id");
+  requireInput(inputs.gameVersion, "game-version");
+  requireInput(inputs.modLoader, "mod-loader");
+
   // Changelog type
   if (inputs.changelogType && !CHANGELOG_TYPES.includes(inputs.changelogType)) {
     throw new Error(`Unsupported changelog file type '${inputs.changelogType}', must be one of: ${CHANGELOG_TYPES}`);
@@ -184,9 +201,9 @@ async function processFile(artifact) {
   // game version
   addGameVersion(inputs.gameVersion, versionNames);
   // mod loader
-  addGameVersion(inputs.modLoader, versionNames);
+  addGameVersion(inputs.modLoader, versionNames, LOADER_NAME_MAPPINGS);
   // environment
-  addGameVersion(inputs.gameEnvironment, versionNames);
+  addGameVersion(inputs.gameEnvironment, versionNames, ENVIRONMENT_NAME_MAPPINGS);
   // java version - optional
   if (inputs.javaVersion) {
     addGameVersion(inputs.javaVersion, versionNames);
@@ -220,8 +237,11 @@ async function processFile(artifact) {
   }
 }
 
-function addGameVersion(input, output) {
-  const values = parseInputList(input);
+function addGameVersion(input, output, mappings = {}) {
+  let values = parseInputList(input);
+  if (mappings) {
+    values = values.map(value => mappings[value] || value);
+  }
   output.push(...values)
 }
 
@@ -252,6 +272,12 @@ function parseInputList(values, separator = ",") {
   }
   const result = values.split(separator);
   return result.map(value => value.trim()).filter(Boolean);
+}
+
+function requireInput(value, name) {
+  if (!value) {
+    throw new Error(`Missing required input: ${name}`);
+  }
 }
 
 async function sendApiRequest(method, url, options = {}, contentLogging = true) {
