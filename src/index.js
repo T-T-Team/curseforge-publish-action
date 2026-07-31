@@ -85,7 +85,7 @@ async function main() {
   setDefaultValuesAndValidate();
 
   // Prepare all files for upload
-  const uploadArtifact = resolveUploadArtifact();
+  const uploadArtifact = await resolveUploadArtifact();
 
   // Resolve versions using version API
   const versionList = await loadGameVersionList(uploadArtifact);
@@ -192,7 +192,7 @@ function setDefaultValuesAndValidate() {
   }
 }
 
-function resolveUploadArtifact() {
+async function resolveUploadArtifact() {
   if (!fs.existsSync(inputs.artifactDirectory)) {
     throw new Error(`Artifact directory does not exist: ${inputs.artifactDirectory}`);
   }
@@ -209,7 +209,7 @@ function resolveUploadArtifact() {
   }
 
   let resultArtifact = matchingReleaseFiles[0];
-  return processFile(path.join(inputs.artifactDirectory, resultArtifact));
+  return await processFile(path.join(inputs.artifactDirectory, resultArtifact));
 }
 
 function filterFile(file) {
@@ -225,7 +225,7 @@ function filterFile(file) {
   return true;
 }
 
-function processFile(artifact) {
+async function processFile(artifact) {
   // Version names
   const versionNames = [];
   // game version
@@ -251,7 +251,7 @@ function processFile(artifact) {
   resolveDependencyList(inputs.dependencies.tools, RELATION_TOOL, dependencies);
 
   // Read the file
-  const fileContent = fs.promises.readFile(artifact);
+  const fileContent = await fs.promises.readFile(artifact);
   const blob = new Blob([fileContent], {type: "application/java-archive"});
 
   return {

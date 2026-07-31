@@ -21857,7 +21857,7 @@ var inputs = {
 };
 async function main() {
   setDefaultValuesAndValidate();
-  const uploadArtifact = resolveUploadArtifact();
+  const uploadArtifact = await resolveUploadArtifact();
   const versionList = await loadGameVersionList(uploadArtifact);
   appendGameVersionList(uploadArtifact, versionList);
   await upload(uploadArtifact);
@@ -21945,7 +21945,7 @@ function setDefaultValuesAndValidate() {
     }
   }
 }
-function resolveUploadArtifact() {
+async function resolveUploadArtifact() {
   if (!fs.existsSync(inputs.artifactDirectory)) {
     throw new Error(`Artifact directory does not exist: ${inputs.artifactDirectory}`);
   }
@@ -21960,7 +21960,7 @@ function resolveUploadArtifact() {
 ${matchingReleaseFiles}`);
   }
   let resultArtifact = matchingReleaseFiles[0];
-  return processFile(path.join(inputs.artifactDirectory, resultArtifact));
+  return await processFile(path.join(inputs.artifactDirectory, resultArtifact));
 }
 function filterFile(file) {
   if (!file.endsWith(".jar")) {
@@ -21974,7 +21974,7 @@ function filterFile(file) {
   }
   return true;
 }
-function processFile(artifact) {
+async function processFile(artifact) {
   const versionNames = [];
   addGameVersion(inputs.gameVersion, GAME_VERSION_MINECRAFT, versionNames);
   addGameVersion(inputs.modLoader, GAME_VERSION_LOADER, versionNames);
@@ -21990,7 +21990,7 @@ function processFile(artifact) {
   resolveDependencyList(inputs.dependencies.embedded, RELATION_EMBEDDED, dependencies);
   resolveDependencyList(inputs.dependencies.incompatible, RELATION_INCOMPATIBLE, dependencies);
   resolveDependencyList(inputs.dependencies.tools, RELATION_TOOL, dependencies);
-  const fileContent = fs.promises.readFile(artifact);
+  const fileContent = await fs.promises.readFile(artifact);
   const blob = new Blob([fileContent], { type: "application/java-archive" });
   return {
     file: blob,
