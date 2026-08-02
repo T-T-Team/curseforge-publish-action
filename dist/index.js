@@ -21775,6 +21775,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 var actions = require_core();
 var fs = require("fs");
 var path = require("path");
+var GAME_VERSION_REGEX = /\+([\w.-]+)$/;
 var BASE_API_URL = "https://minecraft.curseforge.com";
 var URL_UPLOAD_PROVIDER = (id) => `${BASE_API_URL}/api/projects/${id}/upload-file`;
 var EXCLUDED_FILE_SUFFIXES = [
@@ -21897,8 +21898,6 @@ function setDefaultValuesAndValidate() {
   requireInput(inputs.artifactDirectory, "artifact-directory");
   requireInput(inputs.token, "token");
   requireInput(inputs.projectId, "project-id");
-  requireInput(inputs.gameVersion, "game-version");
-  requireInput(inputs.modLoader, "mod-loader");
   if (inputs.changelogType && !CHANGELOG_TYPES.includes(inputs.changelogType)) {
     throw new Error(`Unsupported changelog file type '${inputs.changelogType}', must be one of: ${CHANGELOG_TYPES}`);
   }
@@ -21913,10 +21912,12 @@ function setDefaultValuesAndValidate() {
   if (inputs.releaseChannel && !CHANNEL_TYPES.includes(inputs.releaseChannel)) {
     throw new Error(`Invalid release channel '${inputs.releaseChannel}', must be one of: ${CHANNEL_TYPES}`);
   }
-  const loaders = parseInputList(inputs.modLoader);
-  for (const loader of loaders) {
-    if (!MOD_LOADERS.includes(loader)) {
-      throw new Error(`Invalid mod loader '${loader}', must be one of: ${MOD_LOADERS}`);
+  if (inputs.modLoader) {
+    const loaders = parseInputList(inputs.modLoader);
+    for (const loader of loaders) {
+      if (!MOD_LOADERS.includes(loader)) {
+        throw new Error(`Invalid mod loader '${loader}', must be one of: ${MOD_LOADERS}`);
+      }
     }
   }
 }
@@ -21950,15 +21951,15 @@ function filterFile(file) {
   return true;
 }
 async function processFile(artifact) {
+  const displayName = path.basename(artifact, ".jar").toLowerCase();
+  const releaseChannel = inputs.releaseChannel || resolveReleaseType(displayName);
   const versionNames = [];
-  addGameVersion(inputs.gameVersion, versionNames);
-  addGameVersion(inputs.modLoader, versionNames, LOADER_NAME_MAPPINGS);
+  resolveGameVersion(displayName, versionNames);
+  resolveModLoaders(displayName, versionNames);
   addGameVersion(inputs.gameEnvironment, versionNames, ENVIRONMENT_NAME_MAPPINGS);
   if (inputs.javaVersion) {
     addGameVersion(inputs.javaVersion, versionNames);
   }
-  const displayName = path.basename(artifact, ".jar").toLowerCase();
-  const releaseChannel = inputs.releaseChannel || resolveReleaseType(displayName);
   const dependencies = [];
   resolveDependencyList(inputs.dependencies.required, RELATION_REQUIRED, dependencies);
   resolveDependencyList(inputs.dependencies.optional, RELATION_OPTIONAL, dependencies);
@@ -21985,6 +21986,37 @@ function addGameVersion(input, output, mappings = {}) {
     values = values.map((value) => mappings[value] || value);
   }
   output.push(...values);
+}
+function resolveGameVersion(name, output) {
+  const gameVersions = [];
+  if (inputs.gameVersion) {
+    addGameVersion(inputs.gameVersion, gameVersions);
+  } else {
+    const match = name.match(GAME_VERSION_REGEX);
+    if (match) {
+      gameVersions.push(match[1]);
+    }
+  }
+  if (gameVersions.length === 0) {
+    throw new Error(`Unable to resolve game version from filename '${name}', please include 'game-version' action input`);
+  }
+  output.push(...gameVersions);
+}
+function resolveModLoaders(name, output) {
+  const loaders = [];
+  if (inputs.modLoader) {
+    addGameVersion(inputs.modLoader, loaders, LOADER_NAME_MAPPINGS);
+  } else {
+    for (const loader of MOD_LOADERS) {
+      if (name.includes(`-${loader}`)) {
+        loaders.push(loader);
+      }
+    }
+  }
+  if (loaders.length === 0) {
+    throw new Error(`Unable to resolve mod loaders from filename '${name}', please include 'mod-loader' action input`);
+  }
+  output.push(...loaders);
 }
 function resolveReleaseType(filename) {
   for (const channel of RECOGNIZE_CHANNEL_LIST) {

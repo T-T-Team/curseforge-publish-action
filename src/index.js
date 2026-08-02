@@ -2,6 +2,7 @@ const actions = require('@actions/core');
 const fs = require('fs');
 const path = require('path');
 
+const GAME_VERSION_REGEX = /\+([\w.-]+)$/;
 const BASE_API_URL = "https://minecraft.curseforge.com";
 const URL_UPLOAD_PROVIDER = (id) => `${BASE_API_URL}/api/projects/${id}/upload-file`;
 
@@ -130,8 +131,6 @@ function setDefaultValuesAndValidate() {
   requireInput(inputs.artifactDirectory, "artifact-directory");
   requireInput(inputs.token, "token");
   requireInput(inputs.projectId, "project-id");
-  requireInput(inputs.gameVersion, "game-version");
-  requireInput(inputs.modLoader, "mod-loader");
 
   // Changelog type
   if (inputs.changelogType && !CHANGELOG_TYPES.includes(inputs.changelogType)) {
@@ -154,10 +153,12 @@ function setDefaultValuesAndValidate() {
   }
 
   // Mod loaders
-  const loaders = parseInputList(inputs.modLoader);
-  for (const loader of loaders) {
-    if (!MOD_LOADERS.includes(loader)) {
-      throw new Error(`Invalid mod loader '${loader}', must be one of: ${MOD_LOADERS}`);
+  if (inputs.modLoader) {
+    const loaders = parseInputList(inputs.modLoader);
+    for (const loader of loaders) {
+      if (!MOD_LOADERS.includes(loader)) {
+        throw new Error(`Invalid mod loader '${loader}', must be one of: ${MOD_LOADERS}`);
+      }
     }
   }
 }
@@ -196,21 +197,21 @@ function filterFile(file) {
 }
 
 async function processFile(artifact) {
+  const displayName = path.basename(artifact, ".jar").toLowerCase();
+  const releaseChannel = inputs.releaseChannel || resolveReleaseType(displayName);
+
   // Version names
   const versionNames = [];
   // game version
-  addGameVersion(inputs.gameVersion, versionNames);
+  resolveGameVersion(displayName, versionNames);
   // mod loader
-  addGameVersion(inputs.modLoader, versionNames, LOADER_NAME_MAPPINGS);
+  resolveModLoaders(displayName, versionNames);
   // environment
   addGameVersion(inputs.gameEnvironment, versionNames, ENVIRONMENT_NAME_MAPPINGS);
   // java version - optional
   if (inputs.javaVersion) {
     addGameVersion(inputs.javaVersion, versionNames);
   }
-
-  const displayName = path.basename(artifact, ".jar").toLowerCase();
-  const releaseChannel = inputs.releaseChannel || resolveReleaseType(displayName);
 
   // Dependencies
   const dependencies = [];
@@ -243,6 +244,45 @@ function addGameVersion(input, output, mappings = {}) {
     values = values.map(value => mappings[value] || value);
   }
   output.push(...values)
+}
+
+function resolveGameVersion(name, output) {
+  const gameVersions = [];
+
+  if (inputs.gameVersion) {
+    addGameVersion(inputs.gameVersion, gameVersions);
+  } else {
+    const match = name.match(GAME_VERSION_REGEX);
+    if (match) {
+      gameVersions.push(match[1]);
+    }
+  }
+
+  if (gameVersions.length === 0) {
+    throw new Error(`Unable to resolve game version from filename '${name}', please include 'game-version' action input`);
+  }
+
+  output.push(...gameVersions);
+}
+
+function resolveModLoaders(name, output) {
+  const loaders = [];
+
+  if (inputs.modLoader) {
+    addGameVersion(inputs.modLoader, loaders, LOADER_NAME_MAPPINGS);
+  } else {
+    for (const loader of MOD_LOADERS) {
+      if (name.includes(`-${loader}`)) {
+        loaders.push(loader);
+      }
+    }
+  }
+
+  if (loaders.length === 0) {
+    throw new Error(`Unable to resolve mod loaders from filename '${name}', please include 'mod-loader' action input`);
+  }
+
+  output.push(...loaders);
 }
 
 function resolveReleaseType(filename) {
