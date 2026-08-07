@@ -21966,6 +21966,12 @@ async function processFile(artifact) {
   resolveDependencyList(inputs.dependencies.embedded, RELATION_EMBEDDED, dependencies);
   resolveDependencyList(inputs.dependencies.incompatible, RELATION_INCOMPATIBLE, dependencies);
   resolveDependencyList(inputs.dependencies.tools, RELATION_TOOL, dependencies);
+  let relations;
+  if (dependencies.length > 0) {
+    relations = {
+      projects: dependencies
+    };
+  }
   const fileContent = await fs.promises.readFile(artifact);
   const blob = new Blob([fileContent], { type: "application/java-archive" });
   return {
@@ -21974,9 +21980,7 @@ async function processFile(artifact) {
     releaseType: releaseChannel,
     changelog: inputs.changelogContent,
     changelogType: inputs.changelogType,
-    relations: {
-      projects: dependencies
-    },
+    relations,
     gameVersionNames: versionNames
   };
 }
